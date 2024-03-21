@@ -53,6 +53,11 @@ contract Authorise is ChainlinkClient{
 
     string public extractData;
 
+    // stores address of the voterToken contract
+    address public voterTokenAddress;
+
+  
+
     constructor(address _oracle, string memory _jobId, uint256 _fee) public {
         setChainlinkToken(0x01BE23585060835E02B77ef475b0Cc51aA1e0709); // Set LINK token address //HOW
         oracle = _oracle;
@@ -110,16 +115,49 @@ contract Authorise is ChainlinkClient{
 
     }
 
+    //4.1.5 smart contract receives message from the user, and checks if the real signature is matching the expected signature. 
+
     function submitSignature(bytes memory signature) public {
         //verify sig
         require(verifySignature(extractData, signature), "Invalid signature");
     }
-
+    
+    //4.1.5
     //FIX - add proper signature check scheme
     function verifySignature() {}
+
+    
+
+    //4.1.5.1 if the user is authenticated, smart contract generates a unique NFT token and adds it to the ballot, and sends this ballot to the user 
+    //only owner of Authorise can call:
+    //function sets address of the VoterToken contract
+    function setVoterTokenAddress(address _voterTokenAddress) public onlyOwner{
+        voterTokenAddress = _voterTokenAddress;
+    }
+
+    function authenticateVoter(address voter) public {
+        require(voters[msg.sender].authorised, "Voter is not authorised");
+
+        //4.1.5.2 if the user is not authenticated, smart contract sends a message to the user that the access is unauthorised 
+        require(verifySignature(extractData, voters[msg.sender].signature), "Signature invalid");
+
+        //generate NFT token, by creating new instance of VoterToken contract
+        VoterToken voterToken = VoterToken(voterTokenAddress);
+
+        //calling registerVoter from VoterToken contract
+        uint256 tokenId = voterToken.registerVoter(msg.sender);
+
+        //4.1.6 smart contract saves the token in the list of eligible voters
+        //add token to the list of eligible voters
+        ballots[msg.sender].token = tokenId;
+
+        voter[msg.sender].token = tokenId;
+        ballots[msg.sender].used = false;
     }
 
 }
+
+
 
 contract VoterToken is ERC721 {
     uint256 public tokenCounter;
@@ -138,13 +176,8 @@ contract VoterToken is ERC721 {
     }
 
 
-    //function to verify signature
-    function verifySignature(string memory data, bytes memory signature) public pure returns (bool) {
-        //verify signature: compare expected signature with the real signature
-
-        
-    }
 }
+
 
 
 
