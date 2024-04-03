@@ -19,134 +19,124 @@
 //6b.1.6 smart contract stores the proof of alteration
 
 
-
-
-
 pragma solidity >=0.8.0 <0.9.0;
 
 // SPDX-License-Identifier: UNLICENSED
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
-contract Vote {
+contract SubmitVote {
     IERC721 public nft;
     constructor(address _nft) {
         nft = IERC721(_nft);
     }
 
-    struct Vote {
-        string choice;
+    struct Vote{
         uint256 timestamp;
-        uint256 alterationVote;
+        string choice;
+        uint256 tokenId;
+        bool isOriginalVote;
+        string alterationVote;
     }
 
     struct BlindedVote {
-        bytes blindedVote; //encrypted choice
+        bytes32 blindedVote; //encrypted choice
         uint256 timestamp;
         uint256 nftTokenId;
     }
 
-    struct AlteredVote {
-        string choice;
-        uint256 timestamp;
-        uint256 originalVote;
-    }
+    mapping(uint256 => BlindedVote) public blindedChoices;
+    mapping(uint256 => Vote[]) public votes;
 
-    mapping(address => uint256 ) public originalVotes;
-    mapping(address => BlindedVote) public blindedChoices;
-    mapping(address => Vote[]) public votes;
-    mapping(bytes32 => bool) public voteProofs;     //proof of submit votes
-    mapping(uint256 => AlteredVote) public alteredVotes;
+    event VoteAltered(address voter);
 
-//5a.1 user sends encrypted choice to the transaction together with NFT token
+    //submit blinded vote - submit the committment
     function submitComittment(string memory blindedChoice, uint256 tokenId) public {
         require(nft.ownerOf(tokenId) == msg.sender, "Unauthorised access");
             
             //5a.2 smart contract stores the pair (choice, NFT token) in the list of committments
             //store the blinded choice
-            blindedChoices[msg.sender] = BlindedVote({
-                blindedVote: blindedChoice,
+            blindedChoices[tokenId] = BlindedVote({
+                blindedVote: keccak256(abi.encodePacked(blindedChoice)),
                 timestamp: block.timestamp,
                 nftTokenId: tokenId
-            }); 
+            });
     }
 
-    function verifyBallot(string memory choice, uint256 token) public {
+    //submit unblinded vote
+    function verifyBallot(string memory choice, uint256 tokenId) public {
         //5b.1.1.1 smart contract check if the NFT token is valid, then proceed with 5b.1.2
-        require(nft.ownerOf(token) == msg.sender, "Unauthorised access");
+        require(nft.ownerOf(tokenId) == msg.sender, "Unauthorised access"); //5b.1.1.2 if the token is invalid then "Unauthorised access"
 
-        //5b.1.1.2 if the token is invalid then "Unauthorised access"
-        //5b.1.2 smart contract accepts the ballot
-        votes[msg.sender].push(Vote({choice: choice,timestamp: block.timestamp}));
+         //5b.2 verifies the ballot by matching the choice with the blinded choice - the reveal phase
+        require(blindedChoices[tokenId].blindedVote == keccak256(abi.encodePacked(choice)), "Invalid vote");
 
-        //5b.2 smart contract verifies the choice: by matching the encrypted choice with the choice on the ballot
-        require(keccak256(abi.encodePacked(choice)) == blindedChoices[msg.sender].blindedVote, "Invalid vote");  //otherwise reverts transaction
-
-        //5b.2.1 if the choices match, then store the pair
-        blindedChoices[msg.sender] = BlindedVote({
-            blindedVote: unblindedChoice,
+        //if they match then create a Vote, and if it's the first for that NFT mark is as isOriginal, while alterationVote is empty for now
+        Vote memory vote = Vote({
             timestamp: block.timestamp,
-            nftTokenId: token
+            choice: choice,
+            tokenId: tokenId,
+            isOriginalVote: true,
+            alterationVote: ""
         });
+        
+        //store the vote pair, vote + token
+        votes[tokenId].push(vote);
+    }
+
+    //submit altered vote
+    function submitAlteredVote(string memory originalVote, string memory alterationChoice, uint256 tokenId) public {
+        //check nft ownership
+        require(nft.ownerOf(tokenId) == msg.sender, "Unauthorised access");
+
+        //verify original vote
+        bytes32 originalVoteHash = keccak256(abi.encodePacked(originalVote));
+        require(submitOriginalVoteHash(originalVoteHash, tokenId), "Invalid proof" ); //original vote was not verified
+
+        //create new altered vote
+        Vote memory vote = Vote({
+            timestamp: block.timestamp,
+            choice: alterationChoice,
+            tokenId: tokenId,
+            isOriginalVote: false,
+            alterationVote: alterationChoice
+        });
+
+        //store the altered vote, associated with the nft, but without removing the original vote
+        votes[tokenId].push(vote);
+
+        //let user know the vote was altered, while minimising linking to identity
+        emit VoteAltered(msg.sender);
 
     }
 
-    //alter
-    function submitAlteredVote(bytes32 originalVotes, string memory AlteredVote, uint256 token) public {
-        require(nft.ownerOf(token) == msg.sender, "Unauthorised access");
+    function submitOriginalVoteHash(bytes32 origVoteHash, uint256 tokenId) public view returns(bool){
+        //check nft ownership
+        require(nft.ownerOf(tokenId) == msg.sender, "Unauthorised access");
+        //check if hasn't voted before
+        require(votes[tokenId].length > 0, "Have not voted before"); //no NFT associated found, so no original vote to alter
 
-        uint256 originalVote = originalVotes[msg.sender];
-        require(keccak256(abi.encodePacked(votes[originalVote].choice)) == originalVotes, "Invalid proof");
-
-        alteredVotes.push(AlteredVote({
-            choice: AlteredVote,
-            timestamp: block.timestamp,
-            originalVote: originalVote
-        }));
-
-        //new alterations will replace previous alterations
-        if (votes[originalVote].nextVote != 0) {
-            alteredVotes[votes[originalVote].nextVote].nextVote = alteredVote;
+        //check if the original vote is the same as the one stored
+        if (origVoteHash == keccak256(abi.encodePacked(votes[tokenId][0].choice))) {
+            return true;
         }
-
-        votes[originalVote].nextVote = alteredVote;
-
-
+        return false;
     }
 
-
-
-
-
-    function vote(bytes memory unblindedChoice) public {
-        //verify unblinded matches the blinded chocie
-        require(verifyChoice(unblindedChoice), blindedChoices[msg.sender].blindedVote);
+    //return all votes for a given token
+    function getVotes(uint256 tokenId) public view returns(Vote[] memory){
+        return votes[tokenId];
     }
 
-    function verifyChoice(bytes memory unblindedChoice, bytes memory blindedChoice) public pure returns (bool) {
-        //verify unblinded matches the blinded chocie
-        require(keccak256(unblindedChoice)(abi.encodePacked()) == blindedChoices[msg.sender].blindedVote, "Vote does not match");
+    //return the latest alteration (latest vote for a given token)
+    function getLatestVote(uint256 tokenId) public view returns(Vote memory){
+        require(votes[tokenId].length > 0, "No votes found for this token");
+        return votes[tokenId][votes[tokenId].length - 1];
     }
 
-    function commitVote(bytes memory blindedVote) public {
-        //store the blinded vote
-        blindedChoices[msg.sender] = BlindedVote({
-            blindedVote: blindedVote
-        });
+    //returns the original vote for a given token
+    function getOriginalVote(uint256 tokenId) public view returns(Vote memory){
+        require(votes[tokenId].length > 0, "No votes found for this token");
+        return votes[tokenId][0];
     }
-
-    function revealVote(bytes memory unblindedVote) public {
-        //verify unblinded matches the blinded chocie
-        require(verifyChoice(unblindedVote), blindedChoices[msg.sender].blindedVote);
-    }
-
-    function castVote(string memory choice) public {
-        //store the vote
-        votes[msg.sender].push(Vote({choice: choice,timestamp: block.timestamp}));
-    }
-
-    function requestVoteChange(string memory originalVote) public {
-
-    }
-    
 }
