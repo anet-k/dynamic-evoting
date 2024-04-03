@@ -1,4 +1,12 @@
-pragma solidity >=0.4.22 <0.7.0;
+pragma solidity >=0.8.0 <0.9.0;
+
+// SPDX-License-Identifier: UNLICENSED
+
+ /**
+   * @title Election
+   * @dev ContractDescription
+   * @custom:dev-run-script election_init.sol
+   */
 
 //2. each Election contract means a new election
 contract Election {
@@ -21,7 +29,7 @@ contract Election {
     }
 
     //constructor
-    constructor(string memory _electionId, string memory _data) public { //using _electionId instead of electionId because _electionId is a local variable
+    constructor(string memory _electionId, string memory _data) { //using _electionId instead of electionId because _electionId is a local variable
         //2.1 create genesis block and put it as a first block on the blockchain
         bytes32 previousHash = 0x0; //since there's no previous block
         uint timestamp = block.timestamp; //current time
