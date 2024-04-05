@@ -1,0 +1,33 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2639
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 compile solidity\
+	solcjs \'97bin \'97abi ContractName.sol\
+	node deploy.js\
+	(for running deploy.js, you will need to run the network and copy address)\
+\
+run own local Ethereum network:\
+with Ganache: \
+	npm install -g ganache-cli\
+	ganache-cli\
+\
+with Hardhat\
+	(creates hardhat project)\
+	npx hardhat\
+	(run hardhat network)\
+\
+\
+chainlink with Hardhat\
+	npx hardhat\
+\pard\pardeftab720\partightenfactor0
+\cf0 	npx hardhat unbox smartcontractkit/hardhat-starter-kit\
+or \
+	cd hardhat-starter-kit\
+\pard\pardeftab720\partightenfactor0
+\cf0 	npx hardhat test.\
+\
+}

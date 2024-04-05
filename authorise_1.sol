@@ -12,11 +12,12 @@
 //4.1.5.2 if the user is not authenticated, smart contract sends a message to the user that the access is unauthorised 
 //4.1.6 smart contract saves the token in the list of eligible voters
 
+ //SPDX-License-Identifier: UNLICENSEd
 
 pragma solidity >=0.8.0 <0.9.0;
-import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
-import "./mock_verifier.sol";
-
+//import "https://github.com/smartcontractkit/chainlink/blob/develop/contracts/src/v0.8/ChainlinkFulfillmentInterface.sol";
+import ".deps/npm/@chainlink/contracts/src//v0.8/ChainlinkClient.sol";
+import "mock_verifier.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 contract Authorise is ChainlinkClient{
@@ -37,33 +38,35 @@ contract Authorise is ChainlinkClient{
     bytes32 private jobId;
     uint256 private fee;
 
-    mapping(address => Token) public eligibleVoters;
+    uint256[] public eligibleVoters;
+    mapping(address => bytes32) public signatures;
 
     event RequestSignature(address indexed voter, string message);
     event InvalidSignature(address indexed voter, string message);
     event VoterAuthenticated(address indexed voter, uint256 tokenId);
 
-    constructor(address _oracle, bytes32 _jobId, uint256 _fee) {
+    constructor() {
         verifier = new MockVerifier(); //FIX - finish setting up the verifier
             //deploy mock_verifier on testnet
             //external adapter that calls verifiyCertificate (from mock_verifier.sol) and returns the public key
             //add the external adapter to chainlink node
             //specify jobID of that external adapter in requestBallot
 
-        setPublicChainlinkToken(); //replace: setChainlinkToken(0xa36085F69e2889c224210F603D836748e7dC0088);
-        oracle = _oracle;
-        jobId = _jobId;
-        fee = _fee;
+        //_setPublicChainlinkToken(); 
+        _setChainlinkToken(0xa36085F69e2889c224210F603D836748e7dC0088);
+        //oracle = _oracle;
+        //jobId = _jobId;
+        //fee = _fee;
     }
 
     //ref: https://ethereum.stackexchange.com/questions/126585/how-to-build-chainlink-request-so-that-the-response-will-be-sent-to-another-cont
     function requestBallot(bytes32 _certificate) public {
         certificate = _certificate;
-        Chainlink.Request memory req = buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
-        req.add("certificate", certificate);   //IDK
+        Chainlink.Request memory req = _buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
+        //req.add("certificate", certificate);   //IDK
         //req.add("get", data);
         //req.add("path", "data");
-        sendChainlinkRequestTo(oracle, req, fee);
+        _sendChainlinkRequestTo(oracle, req, fee);
 
     }
 
@@ -81,15 +84,15 @@ contract Authorise is ChainlinkClient{
     function requestSignature() public {
         //send message to user to sign with their private key
         emit RequestSignature(msg.sender, "Please sign with your private key");
-        bytes32 signature; // Declare the signature variable
-        signature = msg.sender; // get signature from user
-        submitSignature(signature); //submit signature
-        
     }
 
-    function submitSignature(bytes32 _signature) public {
+
+    //user uses this function to submit their private key, and smart contract then processes it
+    function processSignature(bytes32 _userSignature) public {
+        //add pair address and signature to the list of signatures
+        signatures[msg.sender] = _userSignature;
         //verify signature
-        require(verifySignature(_signature), "Invalid signature");
+        require(verifySignature(_userSignature), "Invalid signature");
         //if signature is valid, mint NFT
         mintNFT(msg.sender);
         //if signature is invalid, send message to user that signature is invalid
@@ -112,6 +115,7 @@ contract Authorise is ChainlinkClient{
         bool isSender = (signer == msg.sender);
 
         //compare expected sig with the real sig
+        //FIX
         bool isSignature = (keccak256(abi.encodePacked(signatures[msg.sender])) == keccak256(abi.encodePacked(_signature)));
 
         return isSender && isSignature;

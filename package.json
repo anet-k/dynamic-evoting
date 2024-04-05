@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@chainlink/contracts": "^1.0.0",
+    "web3": "^4.7.0"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.22.2",
+    "hardhat-gas-reporter": "^2.1.0"
+  }
+}
