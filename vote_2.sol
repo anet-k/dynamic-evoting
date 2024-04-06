@@ -1,6 +1,6 @@
 //steps
 //5a.1 user sends encrypted choice to the transaction together with NFT token
-//5a.2 smart contract stores the pair (choice, NFT token) in the list of committments
+//5a.2 smart contract stores the pair (choice, NFT token) in the list of commitments
 //5b.1.1 user sends a ballot with the NFT token and the choice (not encrypted)
 //5b.1.1.1 smart contract check if the NFT token is valid, then proceed with 5b.1.2
 //5b.1.1.2 if the token is invalid then "Unauthorised access"
@@ -19,7 +19,7 @@
 //6b.1.6 smart contract stores the proof of alteration
 
 
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity ^0.8.25;
 
 // SPDX-License-Identifier: UNLICENSED
 
@@ -27,16 +27,16 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract SubmitVote {
     IERC721 public nft;
-    constructor(address _nft) {
-        nft = IERC721(_nft);
-    }
+    //constructor(address _nft) {
+    //    nft = IERC721(_nft);
+    //}
 
     struct Vote{
         uint256 timestamp;
-        string choice;
+        bytes32 choice;
         uint256 tokenId;
         bool isOriginalVote;
-        string alterationVote;
+        uint256 previousVoteIndex;
     }
 
     struct BlindedVote {
@@ -50,21 +50,21 @@ contract SubmitVote {
 
     event VoteAltered(address voter);
 
-    //submit blinded vote - submit the committment
-    function submitComittment(string memory blindedChoice, uint256 tokenId) public {
+    //submit blinded vote - submit the commitment
+    function submitCommitment(bytes32 blindedChoice, uint256 tokenId) public {
         require(nft.ownerOf(tokenId) == msg.sender, "Unauthorised access");
             
-            //5a.2 smart contract stores the pair (choice, NFT token) in the list of committments
+            //5a.2 smart contract stores the pair (choice, NFT token) in the list of commitments
             //store the blinded choice
             blindedChoices[tokenId] = BlindedVote({
-                blindedVote: keccak256(abi.encodePacked(blindedChoice)),
+                blindedVote: blindedChoice,
                 timestamp: block.timestamp,
                 nftTokenId: tokenId
             });
     }
 
     //submit unblinded vote
-    function verifyBallot(string memory choice, uint256 tokenId) public {
+    function verifyVote(bytes32 choice, uint256 tokenId) public {
         //5b.1.1.1 smart contract check if the NFT token is valid, then proceed with 5b.1.2
         require(nft.ownerOf(tokenId) == msg.sender, "Unauthorised access"); //5b.1.1.2 if the token is invalid then "Unauthorised access"
 
@@ -77,7 +77,7 @@ contract SubmitVote {
             choice: choice,
             tokenId: tokenId,
             isOriginalVote: true,
-            alterationVote: ""
+            previousVoteIndex: type(uint256).max //invalid index. this Vote has no alterations
         });
         
         //store the vote pair, vote + token
@@ -85,21 +85,40 @@ contract SubmitVote {
     }
 
     //submit altered vote
-    function submitAlteredVote(string memory originalVote, string memory alterationChoice, uint256 tokenId) public {
+    function requestAlteration(bytes32 originalProof, uint256 tokenId) public {
         //check nft ownership
         require(nft.ownerOf(tokenId) == msg.sender, "Unauthorised access");
 
         //verify original vote
-        bytes32 originalVoteHash = keccak256(abi.encodePacked(originalVote));
-        require(submitOriginalVoteHash(originalVoteHash, tokenId), "Invalid proof" ); //original vote was not verified
+        //check if originalProof is the same as the original vote
+        Vote memory originalVote = getOriginalVote(tokenId);
+        bytes32 originalVoteHash = keccak256(abi.encode(originalVote));
+        require(originalVoteHash == originalProof, "Invalid original vote");
+    }
 
+    function commitAlteration(bytes32 alterationChoice, uint256 tokenId) public {
+        //require result of requestAlteration to be true
+        //require(requestAlteration(originalProof, tokenId), "Invalid request"); //but we are not passing originalProof here. 
+        //require(nft.ownerOf(tokenId) == msg.sender, "Unauthorised access");
+
+         //add alterationChoice to commitments = blindedChoices
+        blindedChoices[tokenId] = BlindedVote({
+            blindedVote: alterationChoice,
+            timestamp: block.timestamp,
+            nftTokenId: tokenId
+        });
+    } 
+
+    function verifyAlteration(bytes32 alterationVote, uint256 tokenId) public {
+        //compare alterationVote with blindedChoice
+        require(blindedChoices[tokenId].blindedVote == keccak256(abi.encodePacked(alterationVote)), "Invalid alteration");
         //create new altered vote
         Vote memory vote = Vote({
             timestamp: block.timestamp,
-            choice: alterationChoice,
+            choice: alterationVote,
             tokenId: tokenId,
             isOriginalVote: false,
-            alterationVote: alterationChoice
+            previousVoteIndex: votes[tokenId].length - 1
         });
 
         //store the altered vote, associated with the nft, but without removing the original vote
@@ -107,20 +126,14 @@ contract SubmitVote {
 
         //let user know the vote was altered, while minimising linking to identity
         emit VoteAltered(msg.sender);
-
     }
-
-    function submitOriginalVoteHash(bytes32 origVoteHash, uint256 tokenId) public view returns(bool){
+    //returns the original vote for a given token
+    function getOriginalVote(uint256 tokenId) public view returns(Vote memory){
         //check nft ownership
         require(nft.ownerOf(tokenId) == msg.sender, "Unauthorised access");
-        //check if hasn't voted before
-        require(votes[tokenId].length > 0, "Have not voted before"); //no NFT associated found, so no original vote to alter
 
-        //check if the original vote is the same as the one stored
-        if (origVoteHash == keccak256(abi.encodePacked(votes[tokenId][0].choice))) {
-            return true;
-        }
-        return false;
+        require(votes[tokenId].length > 0, "No votes found for this token");
+        return votes[tokenId][0];
     }
 
     //return all votes for a given token
@@ -132,11 +145,5 @@ contract SubmitVote {
     function getLatestVote(uint256 tokenId) public view returns(Vote memory){
         require(votes[tokenId].length > 0, "No votes found for this token");
         return votes[tokenId][votes[tokenId].length - 1];
-    }
-
-    //returns the original vote for a given token
-    function getOriginalVote(uint256 tokenId) public view returns(Vote memory){
-        require(votes[tokenId].length > 0, "No votes found for this token");
-        return votes[tokenId][0];
     }
 }
