@@ -17,13 +17,7 @@ The Dynamic E-Voting System is designed to address the limitations of traditiona
 ## Repository Structure
 
 ```
-/
-├── contracts/             # Smart contract source code
-├── test/                  # Test scripts for smart contracts
-├── scripts/               # Deployment and interaction scripts
-├── config/                # Configuration files
-├── docs/                  # Documentation
-└── client/                # Frontend application (if applicable)
+
 ```
 
 ## Getting Started
