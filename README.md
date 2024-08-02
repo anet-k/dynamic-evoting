@@ -70,14 +70,6 @@ We welcome contributions to the Dynamic E-Voting System. Please read our [CONTRI
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
 
-## Citation
-
-If you use this code in your research, please cite our paper:
-
-```
-[Insert citation information here]
-```
-
 ## Contact
 
 For questions or feedback, please contact [insert contact information].
