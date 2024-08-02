@@ -6,70 +6,112 @@ This repository contains the source code and documentation for the Dynamic E-Vot
 
 The Dynamic E-Voting System is designed to address the limitations of traditional fixed-term elections by allowing voters to modify their votes at any time, potentially enhancing government accountability beyond initial elections. This system leverages blockchain technology to provide a secure, transparent, and flexible voting platform.
 
-## Key Features
-
-- Continuous voting: Voters can cast and modify their votes throughout the election period
-- Blockchain-based: Ensures transparency, immutability, and security of votes
-- Robust voter authentication: Utilizes cryptographic techniques for secure voter identification
-- Real-time tallying: Provides up-to-date election results
-- Privacy-preserving: Maintains voter anonymity while ensuring vote integrity
-
 ## Repository Structure
 
 ```
-
+/
+├── hardhat-project/
+│   ├── artifacts/
+│   ├── build/
+│   ├── cache/
+│   ├── contracts/
+│   ├── node_modules/
+│   ├── scripts/
+│   ├── test/
+│   ├── .DS_Store
+│   ├── LICENSE
+│   ├── hardhat.config.js
+│   ├── helper-functions.js
+│   ├── helper-hardhat-config.js
+│   └── package.json
+├── node_modules/
+├── .DS_Store
+├── README.md
+├── authorise_1.sol
+├── authorise_chainlink.sol
+├── election_init.sol
+├── mock_chainlink.sol
+├── mock_oracle.sol
+├── mockoracle.js
+└── vote_2.sol
 ```
+
+## Key Components
+
+- `hardhat-project/`: Contains the main Hardhat project structure
+  - `contracts/`: Smart contract source code
+  - `scripts/`: Deployment and interaction scripts
+  - `test/`: Test scripts for smart contracts
+- `authorise_1.sol`, `authorise_chainlink.sol`: Authorization contracts
+- `election_init.sol`: Election initialization contract
+- `vote_2.sol`: Voting contract
+- `mock_chainlink.sol`, `mock_oracle.sol`, `mockoracle.js`: Mock implementations for testing
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js (v14.0.0 or later)
-- Truffle Suite
-- Ganache (for local blockchain development)
-- MetaMask (for interacting with the DApp)
+- Hardhat
+- MetaMask (for interacting with the DApp on a live network)
 
 ### Installation
 
 1. Clone the repository:
    ```
-   git clone https://github.com/anet-k/dynamic-evoting.git
+   git clone [repository-url]
    ```
 
 2. Install dependencies:
    ```
-   cd dynamic-evoting
+   cd hardhat-project
    npm install
    ```
 
 3. Compile smart contracts:
    ```
-   truffle compile
+   npx hardhat compile
    ```
 
-4. Deploy smart contracts (make sure Ganache is running):
+4. Run tests:
    ```
-   truffle migrate
-   ```
-
-5. Run tests:
-   ```
-   truffle test
+   npx hardhat test
    ```
 
-## Usage
+## Smart Contracts
 
-[Provide instructions on how to use the system, including how to set up an election, register voters, cast votes, and modify votes.]
+The system comprises several smart contracts:
+
+- `authorise_1.sol` and `authorise_chainlink.sol`: Handle voter authorization
+- `election_init.sol`: Manages election initialization
+- `vote_2.sol`: Implements the voting logic
+
+## Testing
+
+Test files are located in the `hardhat-project/test/` directory. To run the tests:
+
+```
+cd hardhat-project
+npx hardhat test
+```
+
+## Deployment
+
+Deployment scripts are located in the `hardhat-project/scripts/` directory. To deploy:
+
+```
+cd hardhat-project
+npx hardhat run scripts/deploy.js --network [network-name]
+```
 
 ## Contributing
 
-We welcome contributions to the Dynamic E-Voting System. Please read our [CONTRIBUTING.md](CONTRIBUTING.md) file for details on our code of conduct and the process for submitting pull requests.
+We welcome contributions to the Dynamic E-Voting System. Please feel free to submit issues and pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
+This project is open source and available under the license specified in the LICENSE file in the hardhat-project directory.
 
 ## Contact
 
-For questions or feedback, please contact [insert contact information].
+For questions or feedback, please open an issue in this repository or contact the repository owner.
